@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg">
+<meta name="theme-color" content="#1d6fa3">
+<style>body{margin:0}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Pulse CSI Tracker</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: one column on phones, score + trend side by side on laptops; form opens as a panel */
+:root{
+  --bg:#f3f6f8; --surface:#ffffff; --ink:#14212b; --muted:#5b6b78; --line:#dbe3e9;
+  --accent:#1d6fa3; --accent-ink:#ffffff; --accent-soft:#e1eef7;
+  --good:#1f8a5b; --ok:#b7791f; --bad:#c2413a;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --f-data:"JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f171d; --surface:#17222a; --ink:#e6eef3; --muted:#93a4b1; --line:#283842;
+  --accent:#5fb0e4; --accent-ink:#06202f; --accent-soft:#1b3443;
+  --good:#4cc38a; --ok:#e0a84a; --bad:#ef7a72; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f171d; --surface:#17222a; --ink:#e6eef3; --muted:#93a4b1; --line:#283842;
+  --accent:#5fb0e4; --accent-ink:#06202f; --accent-soft:#1b3443;
+  --good:#4cc38a; --ok:#e0a84a; --bad:#ef7a72; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1040px;margin:0 auto;padding-block:20px 48px;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));
+  display:grid;gap:20px}
+header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:10px}
+.brand svg{flex:none}
+h1{font-family:var(--f-display);font-weight:700;font-size:1.6rem;margin:0;letter-spacing:-.01em}
+h2{font-family:var(--f-display);font-weight:500;font-size:1.1rem;margin:0 0 4px;text-wrap:balance}
+.sub{color:var(--muted);margin:0;font-size:.9rem}
+button{font:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:9px 14px}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;min-width:0}
+.top{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:20px}
+@media (max-width:720px){.top{grid-template-columns:1fr}}
+.score{display:flex;flex-direction:column;gap:10px}
+.big{font-family:var(--f-display);font-weight:700;font-size:4rem;line-height:1;font-variant-numeric:tabular-nums}
+.big small{font-size:1.4rem;color:var(--muted);font-weight:500}
+.pill{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:.82rem;padding:3px 10px;border-radius:999px;width:fit-content}
+.pill::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+.p-good{color:var(--good);background:color-mix(in srgb,var(--good) 14%,transparent)}
+.p-ok{color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,transparent)}
+.p-bad{color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,transparent)}
+.meta{font-family:var(--f-data);font-size:.8rem;color:var(--muted)}
+.scale{display:flex;height:8px;border-radius:4px;overflow:hidden;position:relative}
+.scale span{flex:1}
+.scale .marker{position:absolute;top:-4px;width:3px;height:16px;background:var(--ink);border-radius:2px}
+.chart svg{width:100%;height:auto;display:block}
+.chart text{fill:var(--muted);font-family:var(--f-data);font-size:11px}
+.bars{display:grid;gap:12px}
+.bar{display:grid;grid-template-columns:110px minmax(0,1fr) 48px;align-items:center;gap:10px}
+.bar .track{height:10px;background:var(--accent-soft);border-radius:5px;overflow:hidden}
+.bar .fill{height:100%;background:var(--accent);border-radius:5px}
+.bar .v{font-family:var(--f-data);font-size:.85rem;text-align:right;font-variant-numeric:tabular-nums}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:720px){.grid2{grid-template-columns:1fr}}
+ul.list{list-style:none;margin:0;padding:0;display:grid}
+ul.list li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+ul.list li:first-child{border-top:0}
+.dot{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;font-family:var(--f-data);font-size:.85rem;font-weight:500}
+.who{font-weight:600}
+.note{color:var(--muted);font-size:.88rem;overflow-wrap:anywhere}
+.del{border:0;background:none;color:var(--muted);padding:4px 8px}
+.banner{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;background:var(--accent-soft);border-radius:12px;padding:10px 14px;font-size:.9rem}
+.banner button{padding:6px 12px}
+form{display:grid;gap:14px}
+label{font-weight:600;font-size:.9rem}
+input[type=text],textarea{width:100%;font:inherit;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)}
+.q{display:grid;gap:6px}
+.stars{display:flex;gap:6px;flex-wrap:wrap}
+.stars input{position:absolute;opacity:0;pointer-events:none}
+.stars label{width:44px;height:40px;display:grid;place-items:center;border:1px solid var(--line);border-radius:10px;font-family:var(--f-data);cursor:pointer;background:var(--bg)}
+.stars input:checked + label{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.stars input:focus-visible + label{outline:3px solid var(--accent);outline-offset:2px}
+.hint{color:var(--muted);font-size:.8rem;font-weight:400}
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom, 0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600}
+.empty{color:var(--muted);padding:12px 0}
+@media (prefers-reduced-motion:no-preference){.fill{transition:width .5s ease}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><rect width="34" height="34" rx="9" fill="var(--accent)"/><path d="M6 19h5l3-8 5 14 3-6h6" fill="none" stroke="var(--accent-ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div><h1>Pulse</h1><p class="sub">Customer Satisfaction Index tracker</p></div>
+    </div>
+    <button class="primary" id="openForm">+ Add a rating</button>
+  </header>
+
+  <div class="banner" id="sampleBanner" hidden>
+    <span>You're looking at <b>example ratings</b> so you can see how it works. Add your own, then clear these.</span>
+    <button id="clearSamples">Clear examples</button>
+  </div>
+
+  <section class="panel" id="formPanel" hidden aria-labelledby="formTitle">
+    <h2 id="formTitle">New customer rating</h2>
+    <p class="sub" style="margin-bottom:12px">1 = very unhappy, 5 = very happy.</p>
+    <form id="form">
+      <div class="q"><label for="name">Customer name <span class="hint">(optional)</span></label><input type="text" id="name" placeholder="e.g. Linh Tran"></div>
+      <div id="questions"></div>
+      <div class="q"><label for="comment">Comment <span class="hint">(optional)</span></label><textarea id="comment" rows="2" placeholder="What did they say?"></textarea></div>
+      <div class="actions"><button class="primary" type="submit">Save rating</button><button type="button" id="cancel">Cancel</button></div>
+    </form>
+  </section>
+
+  <div class="top">
+    <section class="panel score" aria-label="Overall score">
+      <h2>Your CSI score</h2>
+      <div class="big" id="csi">–<small>/100</small></div>
+      <span class="pill" id="band">–</span>
+      <div class="scale" aria-hidden="true">
+        <span style="background:var(--bad)"></span><span style="background:var(--ok)"></span><span style="background:var(--good)"></span>
+        <i class="marker" id="marker"></i>
+      </div>
+      <div class="meta" id="count">0 ratings</div>
+    </section>
+    <section class="panel chart" aria-label="Score over time">
+      <h2>Score by week</h2>
+      <p class="sub">Each dot is the average CSI of ratings from that week.</p>
+      <div id="trend"></div>
+    </section>
+  </div>
+
+  <div class="grid2">
+    <section class="panel">
+      <h2>What customers rate</h2>
+      <p class="sub" style="margin-bottom:14px">Your weakest area is where to improve first.</p>
+      <div class="bars" id="bars"></div>
+    </section>
+    <section class="panel">
+      <h2>Latest ratings</h2>
+      <ul class="list" id="list"></ul>
+    </section>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const QUESTIONS=[["quality","Product quality"],["service","Thái độ nhân viên"],["speed","Speed"],["price","Value for money"],["overall","Overall"]];
+const KEY="pulse-csi-v1";
+const $=id=>document.getElementById(id);
+const DAY=864e5;
+
+function sample(){
+  const names=["Linh Tran","Minh Pham","Anna Lee","Huy Do","Mai Vu","Tom Baker","Lan Ngo","Duc Le","Sara Kim","Khoa Bui","Ha Dang","Joe Park"];
+  const notes=["Fast delivery, friendly staff.","A bit pricey but good.","Waited too long at the counter.","Love the quality!","","Will come back.","Staff could be more helpful.",""];
+  const out=[];const now=Date.now();
+  for(let i=0;i<24;i++){
+    const daysAgo=Math.floor(i*2.3);const lift=Math.min(1,(24-i)/24);
+    const r={};QUESTIONS.forEach(([k],j)=>{const base=k==="speed"?2.8:k==="price"?3.2:3.6;r[k]=Math.max(1,Math.min(5,Math.round(base+lift*1.1+((i*7+j*3)%5-2)*0.35)))});
+    out.push({id:"s"+i,name:names[i%names.length],note:notes[i%notes.length],at:now-daysAgo*DAY,r,sample:true});
+  }
+  return out;
+}
+function load(){try{const v=JSON.parse(localStorage.getItem(KEY));if(Array.isArray(v))return v}catch(e){}return sample()}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){}}
+let data=load();
+
+const csiOf=r=>{const v=QUESTIONS.map(([k])=>r[k]);return (v.reduce((a,b)=>a+b,0)/v.length-1)/4*100};
+const band=s=>s>=75?["Happy customers","p-good"]:s>=50?["Mixed feelings","p-ok"]:["Needs attention","p-bad"];
+const colorFor=s=>s>=75?"var(--good)":s>=50?"var(--ok)":"var(--bad)";
+
+function render(){
+  $("sampleBanner").hidden=!data.some(d=>d.sample);
+  const n=data.length;
+  $("count").textContent=n+(n===1?" rating":" ratings")+" · score = average of all answers, 1→0 and 5→100";
+  if(!n){$("csi").innerHTML="–<small>/100</small>";$("band").textContent="No ratings yet";$("band").className="pill";$("marker").style.left="0";}
+  else{
+    const s=data.reduce((a,d)=>a+csiOf(d.r),0)/n;const [t,c]=band(s);
+    $("csi").innerHTML=Math.round(s)+"<small>/100</small>";$("band").textContent=t;$("band").className="pill "+c;
+    $("marker").style.left="calc("+s+"% - 1.5px)";
+  }
+  // bars
+  $("bars").innerHTML=QUESTIONS.map(([k,l])=>{
+    const avg=n?data.reduce((a,d)=>a+d.r[k],0)/n:0;const pct=n?(avg-1)/4*100:0;
+    return `<div class="bar"><span>${l}</span><div class="track"><div class="fill" style="width:${pct}%"></div></div><span class="v">${n?avg.toFixed(1):"–"}/5</span></div>`}).join("");
+  // list
+  const sorted=[...data].sort((a,b)=>b.at-a.at);
+  $("list").innerHTML=sorted.length?sorted.slice(0,8).map(d=>{const s=csiOf(d.r);
+    return `<li><span class="dot" style="color:${colorFor(s)};background:color-mix(in srgb,${colorFor(s)} 14%,transparent)">${Math.round(s)}</span>
+    <div style="min-width:0"><div class="who">${esc(d.name||"Anonymous")}</div><div class="note">${esc(d.note||"No comment")} · ${new Date(d.at).toLocaleDateString()}</div></div>
+    <button class="del" data-id="${d.id}" aria-label="Delete rating">✕</button></li>`}).join(""):`<li class="empty">No ratings yet. Press “Add a rating” to log your first customer.</li>`;
+  trend(sorted);
+}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+
+function trend(sorted){
+  const W=560,H=200,P={l:34,r:30,t:16,b:26};
+  const weeks=new Map();const now=Date.now();
+  sorted.forEach(d=>{const w=Math.floor((now-d.at)/(7*DAY));if(!weeks.has(w))weeks.set(w,[]);weeks.get(w).push(csiOf(d.r))});
+  const keys=[...weeks.keys()].sort((a,b)=>b-a).slice(-8);
+  if(keys.length<2){$("trend").innerHTML=`<p class="empty">Add ratings over at least two weeks to see a trend.</p>`;return}
+  const pts=keys.map((w,i)=>{const v=weeks.get(w);return{w,v:v.reduce((a,b)=>a+b,0)/v.length,i}});
+  const x=i=>P.l+i*(W-P.l-P.r)/(pts.length-1),y=v=>P.t+(1-v/100)*(H-P.t-P.b);
+  let g="";[0,25,50,75,100].forEach(v=>{g+=`<line x1="${P.l}" x2="${W-P.r}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"/><text x="${P.l-6}" y="${y(v)+4}" text-anchor="end">${v}</text>`});
+  const line=pts.map(p=>`${x(p.i)},${y(p.v)}`).join(" ");
+  const area=`${x(0)},${y(0)} ${line} ${x(pts.length-1)},${y(0)}`;
+  const labels=pts.map(p=>`<text x="${x(p.i)}" y="${H-6}" text-anchor="middle">${p.w===0?"This wk":p.w+"w ago"}</text>`).join("");
+  const dots=pts.map((p,i)=>`<circle cx="${x(p.i)}" cy="${y(p.v)}" r="${i===pts.length-1?5.5:3.5}" fill="${i===pts.length-1?"var(--accent)":"var(--surface)"}" stroke="var(--accent)" stroke-width="2"><title>${Math.round(p.v)}</title></circle>`).join("");
+  const last=pts[pts.length-1];
+  $("trend").innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="CSI by week">${g}<polygon points="${area}" fill="var(--accent)" opacity=".12"/><polyline points="${line}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"/>${dots}<text x="${x(last.i)-8}" y="${y(last.v)-10}" text-anchor="end" style="fill:var(--ink);font-weight:500">${Math.round(last.v)}</text>${labels}</svg>`;
+}
+
+// form
+$("questions").innerHTML=QUESTIONS.map(([k,l])=>`<div class="q"><label id="lbl-${k}">${l}</label><div class="stars" role="radiogroup" aria-labelledby="lbl-${k}">${[1,2,3,4,5].map(v=>`<input type="radio" name="${k}" id="${k}${v}" value="${v}" required><label for="${k}${v}">${v}</label>`).join("")}</div></div>`).join("");
+const toggle=open=>{$("formPanel").hidden=!open;if(open)$("name").focus()};
+$("openForm").onclick=()=>toggle(true);
+$("cancel").onclick=()=>{$("form").reset();toggle(false)};
+$("form").addEventListener("submit",e=>{
+  e.preventDefault();const f=new FormData(e.target);const r={};
+  QUESTIONS.forEach(([k])=>r[k]=Number(f.get(k)));
+  data.push({id:"u"+Date.now(),name:$("name").value.trim(),note:$("comment").value.trim(),at:Date.now(),r});
+  save();e.target.reset();toggle(false);render();toast("Rating saved");
+});
+$("list").addEventListener("click",e=>{const b=e.target.closest(".del");if(!b)return;data=data.filter(d=>d.id!==b.dataset.id);save();render();toast("Rating deleted")});
+$("clearSamples").onclick=()=>{data=data.filter(d=>!d.sample);save();render();toast("Examples cleared")};
+let tt;function toast(m){const t=$("toast");t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,1800)}
+if("serviceWorker" in navigator&&location.protocol.startsWith("http")&&!location.hostname.endsWith("claude.ai")){navigator.serviceWorker.register("sw.js").catch(()=>{})}
+render();
+</script>
+
+</body>
+</html>
